@@ -28,7 +28,6 @@ Help you quickly convert exchange rates between different currencies
             margin: 0 auto;
         }
 
-        /* 头部控制区 */
         header {
             background: var(--card-bg);
             padding: 20px;
@@ -52,7 +51,7 @@ Help you quickly convert exchange rates between different currencies
             flex-direction: column;
             gap: 5px;
             flex: 1;
-            min-width: 200px;
+            min-width: 150px;
         }
 
         label { font-size: 0.85rem; font-weight: bold; color: #57606a; }
@@ -63,6 +62,18 @@ Help you quickly convert exchange rates between different currencies
             border-radius: 6px;
             font-size: 1rem;
         }
+
+        /* --- 新增样式：金额输入框与下拉框的组合 --- */
+        .currency-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        #base-amount {
+            width: 80px; /* 控制金额输入框宽度 */
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        /* ------------------------------------- */
 
         button#reset-date {
             background-color: var(--primary-color);
@@ -78,14 +89,12 @@ Help you quickly convert exchange rates between different currencies
 
         button#reset-date:hover { opacity: 0.9; }
 
-        /* 搜索添加区 */
         .add-currency-section {
             margin-top: 15px;
             display: flex;
             gap: 10px;
         }
 
-        /* 汇率卡片网格 */
         .rates-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -149,10 +158,14 @@ Help you quickly convert exchange rates between different currencies
         <h1>🌏 全球实时汇率换算</h1>
         
         <div class="controls">
-            <div class="control-group">
-                <label for="base-currency">基准货币 (1 单位)</label>
-                <select id="base-currency" onchange="updateRates()">
-                    </select>
+            <div class="control-group" style="flex: 2;">
+                <label for="base-currency">持有金额 & 基准货币</label>
+                <div class="currency-input-group">
+                    <input type="number" id="base-amount" value="1" min="0" step="any" oninput="renderGrid()">
+                    
+                    <select id="base-currency" onchange="updateRates()" style="flex:1;">
+                        </select>
+                </div>
             </div>
 
             <div class="control-group">
@@ -167,7 +180,7 @@ Help you quickly convert exchange rates between different currencies
             <div class="control-group">
                 <select id="add-currency-select">
                     <option value="" disabled selected>🔍 搜索并添加货币...</option>
-                    </select>
+                </select>
             </div>
             <button id="reset-date" onclick="addCurrency()" style="background:#2da44e;">添加</button>
         </div>
@@ -178,12 +191,11 @@ Help you quickly convert exchange rates between different currencies
     
     <div class="info-bar">
         数据来源: Frankfurter API (ECB Data).<br>
-        <small>*注: 免费API通常提供每日收盘汇率，非每秒更新的交易级数据。</small>
+        <small>*注: 汇率仅供参考。</small>
     </div>
 </div>
 
 <script>
-    // 货币代码与中文名称映射
     const currencyMap = {
         "CNY": "人民币", "USD": "美元", "EUR": "欧元", "GBP": "英镑", 
         "JPY": "日元", "KRW": "韩元", "SGD": "新加坡元", "HKD": "港币",
@@ -194,33 +206,25 @@ Help you quickly convert exchange rates between different currencies
         "IDR": "印尼盾", "TRY": "土耳其里拉", "MXN": "墨西哥比索"
     };
 
-    // 默认展示的货币列表
     let displayCurrencies = ["USD", "EUR", "GBP", "SGD", "JPY", "KRW", "HKD"];
     let baseCurrency = "CNY";
     let allCurrencies = {}; 
+    
+    // 新增：全局变量存储当前的汇率数据，方便只改金额时不重新请求API
+    let currentRatesData = null; 
 
-    // 初始化
     window.onload = async () => {
-        // 设置日期为今天 (北京时间)
         resetDate(false);
-        
-        // 获取所有可用货币列表
         await fetchCurrencies();
-        
-        // 渲染下拉菜单
         renderSelects();
-        
-        // 获取汇率
         updateRates();
     };
 
-    // 1. 获取所有支持的货币
     async function fetchCurrencies() {
         try {
             const response = await fetch('https://api.frankfurter.app/currencies');
             const data = await response.json();
             allCurrencies = data;
-            // 补充中文名映射，如果API里有新货币
             for(let code in data) {
                 if(!currencyMap[code]) currencyMap[code] = data[code];
             }
@@ -229,7 +233,6 @@ Help you quickly convert exchange rates between different currencies
         }
     }
 
-    // 2. 渲染下拉菜单
     function renderSelects() {
         const baseSelect = document.getElementById('base-currency');
         const addSelect = document.getElementById('add-currency-select');
@@ -237,21 +240,18 @@ Help you quickly convert exchange rates between different currencies
         baseSelect.innerHTML = '';
         addSelect.innerHTML = '<option value="" disabled selected>🔍 搜索或选择货币添加...</option>';
 
-        // 排序：常用的放前面，其他的按字母
         const sortedCodes = Object.keys(allCurrencies).sort();
 
         sortedCodes.forEach(code => {
             const name = currencyMap[code] || allCurrencies[code];
             const optionText = `${code} - ${name}`;
             
-            // 基准货币选项
             const baseOpt = document.createElement('option');
             baseOpt.value = code;
             baseOpt.text = optionText;
             if(code === baseCurrency) baseOpt.selected = true;
             baseSelect.appendChild(baseOpt);
 
-            // 添加货币选项
             const addOpt = document.createElement('option');
             addOpt.value = code;
             addOpt.text = optionText;
@@ -259,19 +259,17 @@ Help you quickly convert exchange rates between different currencies
         });
     }
 
-    // 3. 核心功能：更新汇率
     async function updateRates() {
         const dateInput = document.getElementById('date-picker').value;
         const base = document.getElementById('base-currency').value;
         const msgDiv = document.getElementById('status-msg');
-        const container = document.getElementById('rates-container');
+        
+        // 获取当前输入的金额
+        const amount = document.getElementById('base-amount').value;
 
         msgDiv.style.display = 'block';
-        msgDiv.innerText = `正在获取 ${dateInput} 基于 ${base} 的汇率...`;
-        container.innerHTML = '';
-
-        // API 逻辑：如果是今天，用 'latest'，如果是过去，用日期
-        // 注意：API 如果日期是周末，会自动调整到最近的工作日
+        msgDiv.innerText = `正在获取 ${dateInput} 汇率...`;
+        
         let apiUrl = `https://api.frankfurter.app/${dateInput}?from=${base}`;
         
         try {
@@ -279,26 +277,44 @@ Help you quickly convert exchange rates between different currencies
             if (!response.ok) throw new Error("API Error");
             const data = await response.json();
 
+            // 新增：将抓取到的汇率数据存入全局变量
+            currentRatesData = data.rates;
+
             msgDiv.style.display = 'none';
-            renderGrid(data.rates);
+            // 调用渲染函数（现在渲染函数会读取全局数据和金额输入框）
+            renderGrid();
         } catch (error) {
-            msgDiv.innerText = "获取数据失败，请检查网络或日期（该API不支持部分极早历史数据）。";
+            msgDiv.innerText = "获取数据失败，请检查网络或日期。";
             msgDiv.className = "error";
+            currentRatesData = null; // 出错清空数据
         }
     }
 
-    // 4. 渲染网格
-    function renderGrid(rates) {
+    // 修改：renderGrid 不再接收参数，而是读取全局变量 currentRatesData
+    function renderGrid() {
         const container = document.getElementById('rates-container');
         container.innerHTML = '';
 
-        // 确保列表里的货币都在 API 返回结果中存在（防止API没数据报错）
+        if (!currentRatesData) return;
+
+        // 新增：获取用户输入的金额，如果为空则默认为1
+        let amount = parseFloat(document.getElementById('base-amount').value);
+        if (isNaN(amount) || amount < 0) amount = 1;
+
         displayCurrencies.forEach(code => {
-            // 如果列表里有基准货币本身，跳过
             if (code === document.getElementById('base-currency').value) return;
 
-            let rate = rates[code];
-            if (!rate) return; // API 没有该货币数据
+            let rate = currentRatesData[code];
+            if (!rate) return;
+
+            // 新增：计算 汇率 * 数量
+            let totalValue = rate * amount;
+            
+            // 新增：美化数字格式 (例如: 1,234.56)
+            let formattedValue = totalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
 
             const card = document.createElement('div');
             card.className = 'rate-card';
@@ -307,19 +323,16 @@ Help you quickly convert exchange rates between different currencies
                     <span class="currency-code">${code}</span>
                     <span class="currency-name">${currencyMap[code] || code}</span>
                 </div>
-                <div class="rate-value">${rate}</div>
+                <div class="rate-value">${formattedValue}</div>
                 <button class="delete-btn" onclick="removeCurrency('${code}')" title="移除">×</button>
             `;
             container.appendChild(card);
         });
     }
 
-    // 5. 辅助功能
     function resetDate(shouldUpdate = true) {
         const today = new Date();
-        // 格式化为 YYYY-MM-DD，使用当地时间校正
-        // 为简单起见，这里直接取 ISO 截断，或者手动构造北京时间
-        const offset = 8; // 北京时区 UTC+8
+        const offset = 8; 
         const localDate = new Date(today.getTime() + offset * 3600 * 1000);
         const dateString = localDate.toISOString().split('T')[0];
         
@@ -332,7 +345,9 @@ Help you quickly convert exchange rates between different currencies
         const code = select.value;
         if (code && !displayCurrencies.includes(code)) {
             displayCurrencies.push(code);
-            updateRates();
+            // 这里只需要重新渲染，不需要重新fetch，除非新加的货币不在之前的rates里
+            // 但Frankfurter通常返回所有rates，所以直接渲染即可
+            renderGrid(); 
         } else if (displayCurrencies.includes(code)) {
             alert("该货币已在面板中！");
         }
@@ -340,7 +355,7 @@ Help you quickly convert exchange rates between different currencies
 
     function removeCurrency(code) {
         displayCurrencies = displayCurrencies.filter(c => c !== code);
-        updateRates();
+        renderGrid(); // 修改：删除只需重新渲染
     }
 </script>
 
