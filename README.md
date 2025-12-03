@@ -196,7 +196,7 @@
 
 <div class="container">
     <header>
-        <h1>🌏 全球汇率看板 - 实时查询</h1>
+        <h1>全球汇率看板 - 实时查询</h1>
         
         <div class="controls">
             <div class="control-group" style="flex: 2;">
@@ -246,7 +246,7 @@
     <div id="rates-container" class="rates-grid"></div>
 
     <div class="average-calculator">
-        <h2>📊 周期平均汇率计算</h2>
+        <h2>周期平均汇率计算</h2>
         <div class="avg-controls">
             <div class="control-group">
                 <label for="avg-base-currency">基准货币 (1 单位)</label>
@@ -462,8 +462,8 @@
         });
 
         document.getElementById('info-bar').innerHTML = `
-            数据来源: **${API_SOURCE}**。<br>
-            更新时间: **${formattedTime} (本地时间)**。<br>
+            数据来源: ${API_SOURCE}。<br>
+            更新时间: ${formattedTime} (本地时间)。<br>
             <small>*注意: 此为国际市场参考价，法定会计记账请以国家外汇管理局当日公布的中间价为准。</small>
         `;
     }
