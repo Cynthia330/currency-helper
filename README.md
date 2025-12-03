@@ -85,7 +85,17 @@
         button:hover:not(:disabled) { opacity: 0.9; }
         button:disabled { background-color: #999; cursor: not-allowed; }
 
-        .add-currency-section { margin-top: 15px; display: flex; gap: 10px; }
+        /* 调整布局适应双重选择 */
+        .add-currency-section { 
+            margin-top: 15px; 
+            display: flex; 
+            flex-wrap: wrap; /* 允许换行，适应小屏幕 */
+            gap: 15px 10px; /* 垂直和水平间距 */
+            align-items: flex-end; /* 底部对齐 */
+        }
+        .add-currency-section .control-group { flex: 1; min-width: 180px; }
+        /* ----------------------- */
+
 
         .rates-grid {
             display: grid;
@@ -143,11 +153,9 @@
             border-top: 1px solid #d0d7de;
         }
 
-        /* --- 搜索框新样式 --- */
+        /* --- 搜索框样式 (保持不变) --- */
         .search-container {
             position: relative;
-            flex: 1; 
-            min-width: 150px;
         }
         .results-dropdown {
             position: absolute;
@@ -164,7 +172,7 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            margin-top: 5px; /* 稍微与输入框拉开距离 */
+            margin-top: 5px; 
         }
         .result-item {
             padding: 8px 12px;
@@ -178,7 +186,7 @@
             background-color: var(--bg-color);
         }
         .result-item.selected {
-            background-color: #e0f2ff; /* 突出显示当前选择项 */
+            background-color: #e0f2ff;
         }
         .result-name { font-size: 0.9rem; color: #57606a; }
         /* ---------------------- */
@@ -211,7 +219,7 @@
 
         <div class="add-currency-section">
             <div class="control-group search-container">
-                <label for="add-currency-search">添加观察货币</label>
+                <label for="add-currency-search">快速搜索 (代码/名称/国家)</label>
                 <input 
                     type="text" 
                     id="add-currency-search" 
@@ -222,6 +230,14 @@
                 >
                 <ul id="currency-results-dropdown" class="results-dropdown"></ul>
             </div>
+
+            <div class="control-group">
+                <label for="add-currency-select">或 从列表中选择</label>
+                <select id="add-currency-select" onchange="handleSelectChange()">
+                    <option value="" disabled selected>选择货币添加...</option>
+                </select>
+            </div>
+            
             <button id="add-currency-button" onclick="addCurrency()" style="background:#2da44e;" disabled>添加</button>
         </div>
         </header>
@@ -297,7 +313,7 @@
     let baseCurrency = "CNY";
     let allCurrencies = {}; 
     let currentRatesData = null; 
-    let selectedCurrencyCode = null; // 新增：用于存储通过搜索选中的货币代码
+    let selectedCurrencyCode = null; 
 
     window.onload = async () => {
         resetDate(false);
@@ -307,17 +323,44 @@
         updateInfoBar();
     };
 
-    // ------------------- 新增搜索功能逻辑 -------------------
+    // --- 状态清除函数 (防止搜索框和下拉栏冲突) ---
+    function clearSelectionState() {
+        document.getElementById('add-currency-search').value = '';
+        document.getElementById('add-currency-select').value = '';
+        document.getElementById('currency-results-dropdown').style.display = 'none';
+        document.getElementById('add-currency-button').disabled = true;
+        selectedCurrencyCode = null;
+    }
 
+    // --- 下拉栏选择事件处理函数 ---
+    function handleSelectChange() {
+        const select = document.getElementById('add-currency-select');
+        const code = select.value;
+        
+        if (code) {
+            selectedCurrencyCode = code;
+            document.getElementById('add-currency-search').value = ''; // 清除搜索框
+            document.getElementById('currency-results-dropdown').style.display = 'none';
+            document.getElementById('add-currency-button').disabled = false;
+        } else {
+            document.getElementById('add-currency-button').disabled = true;
+            selectedCurrencyCode = null;
+        }
+    }
+
+    // --- 搜索输入事件处理函数 ---
     function filterCurrencies() {
         const input = document.getElementById('add-currency-search');
         const dropdown = document.getElementById('currency-results-dropdown');
         const button = document.getElementById('add-currency-button');
+        const select = document.getElementById('add-currency-select');
+        
         const filter = input.value.toUpperCase();
         
         dropdown.innerHTML = '';
-        selectedCurrencyCode = null;
+        selectedCurrencyCode = null; // 清除当前选择状态
         button.disabled = true;
+        select.value = ''; // 清除下拉栏选择状态
 
         if (filter.length < 1) {
             dropdown.style.display = 'none';
@@ -326,7 +369,6 @@
 
         const filteredCodes = Object.keys(allCurrencies).filter(code => {
             const name = currencyMap[code] || allCurrencies[code];
-            // 支持模糊匹配：代码，名称，国家名称
             return code.includes(filter) || name.toUpperCase().includes(filter);
         }).sort();
 
@@ -335,7 +377,7 @@
             return;
         }
         
-        filteredCodes.slice(0, 10).forEach(code => { // 限制显示10个结果
+        filteredCodes.slice(0, 10).forEach(code => { 
             const name = currencyMap[code] || allCurrencies[code];
             const item = document.createElement('li');
             item.className = 'result-item';
@@ -352,23 +394,21 @@
     }
 
     function selectCurrency(e, code, name) {
-        e.stopPropagation(); // 阻止事件冒泡到 body 的 hideDropdown
+        e.stopPropagation(); 
         document.getElementById('add-currency-search').value = `${code} - ${name}`;
         selectedCurrencyCode = code;
         document.getElementById('add-currency-button').disabled = false;
         document.getElementById('currency-results-dropdown').style.display = 'none';
+        document.getElementById('add-currency-select').value = ''; // 清除下拉栏
         
-        // 如果用户按 Enter 选择了，焦点留在输入框
         document.getElementById('add-currency-search').focus(); 
     }
     
-    // 处理键盘事件 (Enter 键快速选择)
     function handleKeydown(event) {
         const dropdown = document.getElementById('currency-results-dropdown');
         const items = dropdown.querySelectorAll('.result-item');
         if (items.length === 0) return;
 
-        // 当前选中的索引
         let currentIndex = -1;
         items.forEach((item, index) => {
             if (item.classList.contains('selected')) {
@@ -392,26 +432,19 @@
             items[prevIndex].scrollIntoView({ block: 'nearest' });
         } else if (event.key === 'Enter') {
             event.preventDefault();
-            if (currentIndex !== -1) {
-                const code = items[currentIndex].getAttribute('data-code');
-                const name = items[currentIndex].querySelector('.result-name').textContent;
+            const indexToSelect = currentIndex !== -1 ? currentIndex : 0;
+            if (items.length > 0) {
+                const code = items[indexToSelect].getAttribute('data-code');
+                const name = items[indexToSelect].querySelector('.result-name').textContent;
                 selectCurrency(event, code, name);
-                addCurrency(); // 模拟点击添加按钮
-            } else if (items.length > 0) {
-                // 如果没有选中项，默认选择第一个
-                const code = items[0].getAttribute('data-code');
-                const name = items[0].querySelector('.result-name').textContent;
-                selectCurrency(event, code, name);
-                addCurrency(); // 模拟点击添加按钮
+                addCurrency(); 
             }
         }
     }
 
-    // 点击页面其他位置隐藏下拉列表
     function hideDropdown(event) {
         const searchInput = document.getElementById('add-currency-search');
         const dropdown = document.getElementById('currency-results-dropdown');
-        // 如果点击的目标不是输入框或下拉列表本身，则隐藏
         if (event.target !== searchInput && !dropdown.contains(event.target)) {
             dropdown.style.display = 'none';
         }
@@ -449,12 +482,14 @@
     }
 
     function renderSelects() {
-        // 由于添加货币部分已改为搜索框，这里只处理基准货币和平均汇率计算的下拉菜单
+        // 更新所有下拉菜单
         const baseSelect = document.getElementById('base-currency');
+        const addSelect = document.getElementById('add-currency-select'); // 重新获取
         const avgBaseSelect = document.getElementById('avg-base-currency');
         const avgTargetSelect = document.getElementById('avg-target-currency');
 
         baseSelect.innerHTML = '';
+        addSelect.innerHTML = '<option value="" disabled selected>选择货币添加...</option>'; // 恢复默认选项
         avgBaseSelect.innerHTML = '';
         avgTargetSelect.innerHTML = '';
 
@@ -468,6 +503,10 @@
             const baseOpt = new Option(optionText, code);
             if(code === baseCurrency) baseOpt.selected = true;
             baseSelect.appendChild(baseOpt);
+            
+            // 添加货币下拉列表选项 (新恢复)
+            const addOpt = new Option(optionText, code);
+            addSelect.appendChild(addOpt);
             
             // 平均汇率计算选项
             const avgBaseOpt = new Option(optionText, code);
@@ -599,18 +638,16 @@
         }
     }
 
-    // 修改：使用 selectedCurrencyCode
+    // 修改：清除所有选择状态
     function addCurrency() {
         const code = selectedCurrencyCode;
         if (code && !displayCurrencies.includes(code)) {
             displayCurrencies.push(code);
             renderGrid();
-            // 重置搜索状态
-            document.getElementById('add-currency-search').value = '';
-            document.getElementById('add-currency-button').disabled = true;
-            selectedCurrencyCode = null;
+            clearSelectionState(); // 清除状态
         } else if (displayCurrencies.includes(code)) {
             alert("该货币已在面板中！");
+            clearSelectionState(); // 即使失败也要清除状态
         }
     }
 
