@@ -1,6 +1,5 @@
-# currency-helper
+# 你的汇率换算助手
 Help you quickly convert exchange rates between different currencies
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
