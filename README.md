@@ -1,5 +1,4 @@
 # 你的汇率换算助手
-Help you quickly convert exchange rates between different currencies
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -35,17 +34,13 @@ Help you quickly convert exchange rates between different currencies
             margin-bottom: 20px;
         }
 
-        /* --- H1 样式 --- */
         h1 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
 
-        /* --- 新增：H2 样式与 H1 保持一致 --- */
         .average-calculator h2 {
             margin: 0 0 20px 0;
-            font-size: 1.5rem; /* 与 H1 保持相同大小 */
-            text-align: center; /* 与 H1 保持居中 */
+            font-size: 1.5rem; 
+            text-align: center;
         }
-        /* ---------------------------------- */
-
 
         .controls {
             display: flex;
@@ -87,7 +82,8 @@ Help you quickly convert exchange rates between different currencies
             align-self: flex-end;
         }
 
-        button:hover { opacity: 0.9; }
+        button:hover:not(:disabled) { opacity: 0.9; }
+        button:disabled { background-color: #999; cursor: not-allowed; }
 
         .add-currency-section { margin-top: 15px; display: flex; gap: 10px; }
 
@@ -109,7 +105,6 @@ Help you quickly convert exchange rates between different currencies
             transition: transform 0.2s;
         }
         
-        /* --- 货币显示格式 (保留第一版样式) --- */
         .currency-info { display: flex; flex-direction: column; }
         .currency-code { font-weight: bold; font-size: 1.2rem; }
         .currency-name { font-size: 0.8rem; color: #57606a; }
@@ -119,7 +114,6 @@ Help you quickly convert exchange rates between different currencies
             color: var(--primary-color);
             font-weight: bold;
         }
-        /* --------------------------------- */
 
         .avg-controls {
             display: flex;
@@ -148,9 +142,49 @@ Help you quickly convert exchange rates between different currencies
             padding-top: 10px;
             border-top: 1px solid #d0d7de;
         }
+
+        /* --- 搜索框新样式 --- */
+        .search-container {
+            position: relative;
+            flex: 1; 
+            min-width: 150px;
+        }
+        .results-dropdown {
+            position: absolute;
+            z-index: 1000; 
+            background: var(--card-bg);
+            border: 1px solid #d0d7de;
+            border-radius: var(--border-radius);
+            max-height: 200px;
+            overflow-y: auto;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            top: 100%;
+            display: none;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            margin-top: 5px; /* 稍微与输入框拉开距离 */
+        }
+        .result-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .result-item:hover {
+            background-color: var(--bg-color);
+        }
+        .result-item.selected {
+            background-color: #e0f2ff; /* 突出显示当前选择项 */
+        }
+        .result-name { font-size: 0.9rem; color: #57606a; }
+        /* ---------------------- */
     </style>
 </head>
-<body>
+<body onclick="hideDropdown(event)">
 
 <div class="container">
     <header>
@@ -176,14 +210,21 @@ Help you quickly convert exchange rates between different currencies
         </div>
 
         <div class="add-currency-section">
-            <div class="control-group">
-                <select id="add-currency-select">
-                    <option value="" disabled selected>🔍 搜索或选择货币添加...</option>
-                </select>
+            <div class="control-group search-container">
+                <label for="add-currency-search">添加观察货币</label>
+                <input 
+                    type="text" 
+                    id="add-currency-search" 
+                    placeholder="🔍 搜索：代码/名称/国家" 
+                    oninput="filterCurrencies()" 
+                    onkeydown="handleKeydown(event)"
+                    autocomplete="off"
+                >
+                <ul id="currency-results-dropdown" class="results-dropdown"></ul>
             </div>
-            <button onclick="addCurrency()" style="background:#2da44e;">添加</button>
+            <button id="add-currency-button" onclick="addCurrency()" style="background:#2da44e;" disabled>添加</button>
         </div>
-    </header>
+        </header>
 
     <div id="status-msg" class="loading">正在加载数据...</div>
     <div id="rates-container" class="rates-grid"></div>
@@ -226,19 +267,37 @@ Help you quickly convert exchange rates between different currencies
     const API_URL = 'https://api.frankfurter.app';
 
     const currencyMap = {
-        "CNY": "人民币", "USD": "美元", "EUR": "欧元", "GBP": "英镑", 
-        "JPY": "日元", "KRW": "韩元", "SGD": "新加坡元", "HKD": "港币",
-        "AUD": "澳元", "CAD": "加元", "CHF": "瑞士法郎", "NZD": "新西兰元",
-        "THB": "泰铢", "MYR": "马来西亚林吉特", "RUB": "俄罗斯卢布",
-        "INR": "印度卢比", "BRL": "巴西雷亚尔", "ZAR": "南非兰特",
-        "TWD": "新台币", "VND": "越南盾", "PHP": "菲律宾比索",
-        "IDR": "印尼盾", "TRY": "土耳其里拉", "MXN": "墨西哥比索"
+        "CNY": "人民币 (中国)", 
+        "USD": "美元 (美国)", 
+        "EUR": "欧元 (欧元区/欧盟)", 
+        "GBP": "英镑 (英国)", 
+        "JPY": "日元 (日本)", 
+        "KRW": "韩元 (韩国)", 
+        "SGD": "新加坡元 (新加坡)", 
+        "HKD": "港币 (香港)",
+        "AUD": "澳元 (澳大利亚)", 
+        "CAD": "加元 (加拿大)", 
+        "CHF": "瑞士法郎 (瑞士)", 
+        "NZD": "新西兰元 (新西兰)",
+        "THB": "泰铢 (泰国)", 
+        "MYR": "马来西亚林吉特 (马来西亚)", 
+        "RUB": "俄罗斯卢布 (俄罗斯)",
+        "INR": "印度卢比 (印度)", 
+        "BRL": "巴西雷亚尔 (巴西)", 
+        "ZAR": "南非兰特 (南非)",
+        "TWD": "新台币 (台湾)", 
+        "VND": "越南盾 (越南)", 
+        "PHP": "菲律宾比索 (菲律宾)",
+        "IDR": "印尼盾 (印度尼西亚)", 
+        "TRY": "土耳其里拉 (土耳其)", 
+        "MXN": "墨西哥比索 (墨西哥)"
     };
 
     let displayCurrencies = ["USD", "EUR", "GBP", "SGD", "JPY", "KRW", "HKD"];
     let baseCurrency = "CNY";
     let allCurrencies = {}; 
     let currentRatesData = null; 
+    let selectedCurrencyCode = null; // 新增：用于存储通过搜索选中的货币代码
 
     window.onload = async () => {
         resetDate(false);
@@ -247,6 +306,119 @@ Help you quickly convert exchange rates between different currencies
         updateRates();
         updateInfoBar();
     };
+
+    // ------------------- 新增搜索功能逻辑 -------------------
+
+    function filterCurrencies() {
+        const input = document.getElementById('add-currency-search');
+        const dropdown = document.getElementById('currency-results-dropdown');
+        const button = document.getElementById('add-currency-button');
+        const filter = input.value.toUpperCase();
+        
+        dropdown.innerHTML = '';
+        selectedCurrencyCode = null;
+        button.disabled = true;
+
+        if (filter.length < 1) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        const filteredCodes = Object.keys(allCurrencies).filter(code => {
+            const name = currencyMap[code] || allCurrencies[code];
+            // 支持模糊匹配：代码，名称，国家名称
+            return code.includes(filter) || name.toUpperCase().includes(filter);
+        }).sort();
+
+        if (filteredCodes.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        filteredCodes.slice(0, 10).forEach(code => { // 限制显示10个结果
+            const name = currencyMap[code] || allCurrencies[code];
+            const item = document.createElement('li');
+            item.className = 'result-item';
+            item.setAttribute('data-code', code);
+            item.innerHTML = `
+                <span class="result-code">${code}</span>
+                <span class="result-name">${name}</span>
+            `;
+            item.onclick = (e) => selectCurrency(e, code, name);
+            dropdown.appendChild(item);
+        });
+
+        dropdown.style.display = 'block';
+    }
+
+    function selectCurrency(e, code, name) {
+        e.stopPropagation(); // 阻止事件冒泡到 body 的 hideDropdown
+        document.getElementById('add-currency-search').value = `${code} - ${name}`;
+        selectedCurrencyCode = code;
+        document.getElementById('add-currency-button').disabled = false;
+        document.getElementById('currency-results-dropdown').style.display = 'none';
+        
+        // 如果用户按 Enter 选择了，焦点留在输入框
+        document.getElementById('add-currency-search').focus(); 
+    }
+    
+    // 处理键盘事件 (Enter 键快速选择)
+    function handleKeydown(event) {
+        const dropdown = document.getElementById('currency-results-dropdown');
+        const items = dropdown.querySelectorAll('.result-item');
+        if (items.length === 0) return;
+
+        // 当前选中的索引
+        let currentIndex = -1;
+        items.forEach((item, index) => {
+            if (item.classList.contains('selected')) {
+                currentIndex = index;
+            }
+        });
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            let nextIndex = (currentIndex + 1) % items.length;
+            
+            items.forEach(item => item.classList.remove('selected'));
+            items[nextIndex].classList.add('selected');
+            items[nextIndex].scrollIntoView({ block: 'nearest' });
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            let prevIndex = (currentIndex - 1 + items.length) % items.length;
+            
+            items.forEach(item => item.classList.remove('selected'));
+            items[prevIndex].classList.add('selected');
+            items[prevIndex].scrollIntoView({ block: 'nearest' });
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (currentIndex !== -1) {
+                const code = items[currentIndex].getAttribute('data-code');
+                const name = items[currentIndex].querySelector('.result-name').textContent;
+                selectCurrency(event, code, name);
+                addCurrency(); // 模拟点击添加按钮
+            } else if (items.length > 0) {
+                // 如果没有选中项，默认选择第一个
+                const code = items[0].getAttribute('data-code');
+                const name = items[0].querySelector('.result-name').textContent;
+                selectCurrency(event, code, name);
+                addCurrency(); // 模拟点击添加按钮
+            }
+        }
+    }
+
+    // 点击页面其他位置隐藏下拉列表
+    function hideDropdown(event) {
+        const searchInput = document.getElementById('add-currency-search');
+        const dropdown = document.getElementById('currency-results-dropdown');
+        // 如果点击的目标不是输入框或下拉列表本身，则隐藏
+        if (event.target !== searchInput && !dropdown.contains(event.target)) {
+            dropdown.style.display = 'none';
+        }
+    }
+    
+    // -----------------------------------------------------
+
 
     function updateInfoBar() {
         const now = new Date();
@@ -277,30 +449,27 @@ Help you quickly convert exchange rates between different currencies
     }
 
     function renderSelects() {
+        // 由于添加货币部分已改为搜索框，这里只处理基准货币和平均汇率计算的下拉菜单
         const baseSelect = document.getElementById('base-currency');
-        const addSelect = document.getElementById('add-currency-select');
-        
         const avgBaseSelect = document.getElementById('avg-base-currency');
         const avgTargetSelect = document.getElementById('avg-target-currency');
 
         baseSelect.innerHTML = '';
-        addSelect.innerHTML = '<option value="" disabled selected>🔍 搜索或选择货币添加...</option>';
         avgBaseSelect.innerHTML = '';
         avgTargetSelect.innerHTML = '';
 
         const sortedCodes = Object.keys(allCurrencies).sort();
 
         sortedCodes.forEach(code => {
-            const name = currencyMap[code] || allCurrencies[code];
+            const name = currencyMap[code] || allCurrencies[code]; 
             const optionText = `${code} - ${name}`;
             
+            // 实时面板选项
             const baseOpt = new Option(optionText, code);
             if(code === baseCurrency) baseOpt.selected = true;
             baseSelect.appendChild(baseOpt);
-
-            const addOpt = new Option(optionText, code);
-            addSelect.appendChild(addOpt);
             
+            // 平均汇率计算选项
             const avgBaseOpt = new Option(optionText, code);
             const avgTargetOpt = new Option(optionText, code);
             
@@ -430,22 +599,16 @@ Help you quickly convert exchange rates between different currencies
         }
     }
 
-    function resetDate(shouldUpdate = true) {
-        const today = new Date();
-        const offset = 8; 
-        const localDate = new Date(today.getTime() + offset * 3600 * 1000);
-        const dateString = localDate.toISOString().split('T')[0];
-        
-        document.getElementById('date-picker').value = dateString;
-        if(shouldUpdate) updateRates();
-    }
-
+    // 修改：使用 selectedCurrencyCode
     function addCurrency() {
-        const select = document.getElementById('add-currency-select');
-        const code = select.value;
+        const code = selectedCurrencyCode;
         if (code && !displayCurrencies.includes(code)) {
             displayCurrencies.push(code);
-            renderGrid(); 
+            renderGrid();
+            // 重置搜索状态
+            document.getElementById('add-currency-search').value = '';
+            document.getElementById('add-currency-button').disabled = true;
+            selectedCurrencyCode = null;
         } else if (displayCurrencies.includes(code)) {
             alert("该货币已在面板中！");
         }
@@ -454,6 +617,16 @@ Help you quickly convert exchange rates between different currencies
     function removeCurrency(code) {
         displayCurrencies = displayCurrencies.filter(c => c !== code);
         renderGrid(); 
+    }
+    
+    function resetDate(shouldUpdate = true) {
+        const today = new Date();
+        const offset = 8; 
+        const localDate = new Date(today.getTime() + offset * 3600 * 1000);
+        const dateString = localDate.toISOString().split('T')[0];
+        
+        document.getElementById('date-picker').value = dateString;
+        if(shouldUpdate) updateRates();
     }
 </script>
 
