@@ -1,11 +1,10 @@
 # 你的汇率换算助手
 Help you quickly convert exchange rates between different currencies
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球汇率看板</title>
+    <title>全球汇率看板 - 财务专用</title>
     <style>
         :root {
             --primary-color: #0969da;
@@ -36,7 +35,17 @@ Help you quickly convert exchange rates between different currencies
             margin-bottom: 20px;
         }
 
+        /* --- H1 样式 --- */
         h1 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
+
+        /* --- 新增：H2 样式与 H1 保持一致 --- */
+        .average-calculator h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.5rem; /* 与 H1 保持相同大小 */
+            text-align: center; /* 与 H1 保持居中 */
+        }
+        /* ---------------------------------- */
+
 
         .controls {
             display: flex;
@@ -100,6 +109,18 @@ Help you quickly convert exchange rates between different currencies
             transition: transform 0.2s;
         }
         
+        /* --- 货币显示格式 (保留第一版样式) --- */
+        .currency-info { display: flex; flex-direction: column; }
+        .currency-code { font-weight: bold; font-size: 1.2rem; }
+        .currency-name { font-size: 0.8rem; color: #57606a; }
+        
+        .rate-value {
+            font-size: 1.4rem;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        /* --------------------------------- */
+
         .avg-controls {
             display: flex;
             flex-wrap: wrap;
@@ -133,7 +154,7 @@ Help you quickly convert exchange rates between different currencies
 
 <div class="container">
     <header>
-        <h1>全球汇率看板 - 实时查询</h1>
+        <h1>🌏 全球汇率看板 - 实时查询</h1>
         
         <div class="controls">
             <div class="control-group" style="flex: 2;">
@@ -227,7 +248,6 @@ Help you quickly convert exchange rates between different currencies
         updateInfoBar();
     };
 
-    // --- 数据透明化功能 ---
     function updateInfoBar() {
         const now = new Date();
         const formattedTime = now.toLocaleString('zh-CN', {
@@ -239,7 +259,7 @@ Help you quickly convert exchange rates between different currencies
         document.getElementById('info-bar').innerHTML = `
             数据来源: **${API_SOURCE}**。<br>
             更新时间: **${formattedTime} (本地时间)**。<br>
-            <small>*注意: 此为国际市场参考价，请以国家外汇管理局当日公布的中间价为准。</small>
+            <small>*注意: 此为国际市场参考价，法定会计记账请以国家外汇管理局当日公布的中间价为准。</small>
         `;
     }
 
@@ -274,7 +294,6 @@ Help you quickly convert exchange rates between different currencies
             const name = currencyMap[code] || allCurrencies[code];
             const optionText = `${code} - ${name}`;
             
-            // 实时面板选项
             const baseOpt = new Option(optionText, code);
             if(code === baseCurrency) baseOpt.selected = true;
             baseSelect.appendChild(baseOpt);
@@ -282,7 +301,6 @@ Help you quickly convert exchange rates between different currencies
             const addOpt = new Option(optionText, code);
             addSelect.appendChild(addOpt);
             
-            // 平均汇率计算选项
             const avgBaseOpt = new Option(optionText, code);
             const avgTargetOpt = new Option(optionText, code);
             
@@ -356,7 +374,6 @@ Help you quickly convert exchange rates between different currencies
         });
     }
 
-    // 格式化日期：Date对象 -> YYYY-MM-DD 字符串
     function formatDate(date) {
         const d = new Date(date);
         let month = '' + (d.getMonth() + 1);
@@ -369,7 +386,6 @@ Help you quickly convert exchange rates between different currencies
         return [year, month, day].join('-');
     }
 
-    // 核心计算函数 (已移除 setPeriodDates 函数的依赖)
     async function calculateAverageRate() {
         const base = document.getElementById('avg-base-currency').value;
         const target = document.getElementById('avg-target-currency').value;
@@ -384,7 +400,6 @@ Help you quickly convert exchange rates between different currencies
 
         resultDiv.innerHTML = '<p class="loading">正在获取历史数据并计算，请稍候...</p>';
         
-        // Frankfurter API支持范围查询: /YYYY-MM-DD..YYYY-MM-DD?from=...&to=...
         const apiUrl = `${API_URL}/${start}..${end}?from=${base}&to=${target}`;
 
         try {
@@ -397,7 +412,6 @@ Help you quickly convert exchange rates between different currencies
                  return;
             }
 
-            // rates 结构是 { "YYYY-MM-DD": { "TARGET": RATE } }
             const ratesArray = Object.values(data.rates).map(r => r[target]);
             const totalRates = ratesArray.length;
             const sumOfRates = ratesArray.reduce((sum, rate) => sum + rate, 0);
