@@ -1,5 +1,6 @@
 # 你的汇率换算助手
 Help you quickly convert exchange rates between different currencies
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -27,7 +28,7 @@ Help you quickly convert exchange rates between different currencies
             margin: 0 auto;
         }
 
-        header {
+        header, .average-calculator {
             background: var(--card-bg);
             padding: 20px;
             border-radius: var(--border-radius);
@@ -55,26 +56,17 @@ Help you quickly convert exchange rates between different currencies
 
         label { font-size: 0.85rem; font-weight: bold; color: #57606a; }
         
-        select, input {
+        select, input[type="text"], input[type="date"], input[type="number"] {
             padding: 8px 12px;
             border: 1px solid #d0d7de;
             border-radius: 6px;
             font-size: 1rem;
         }
 
-        /* --- 新增样式：金额输入框与下拉框的组合 --- */
-        .currency-input-group {
-            display: flex;
-            gap: 10px;
-        }
-        #base-amount {
-            width: 80px; /* 控制金额输入框宽度 */
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-        /* ------------------------------------- */
-
-        button#reset-date {
+        .currency-input-group { display: flex; gap: 10px; }
+        #base-amount { width: 80px; font-weight: bold; color: var(--primary-color); }
+        
+        button {
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -86,13 +78,9 @@ Help you quickly convert exchange rates between different currencies
             align-self: flex-end;
         }
 
-        button#reset-date:hover { opacity: 0.9; }
+        button:hover { opacity: 0.9; }
 
-        .add-currency-section {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-        }
+        .add-currency-section { margin-top: 15px; display: flex; gap: 10px; }
 
         .rates-grid {
             display: grid;
@@ -111,34 +99,23 @@ Help you quickly convert exchange rates between different currencies
             position: relative;
             transition: transform 0.2s;
         }
-
-        .rate-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-
-        .currency-info { display: flex; flex-direction: column; }
-        .currency-code { font-weight: bold; font-size: 1.2rem; }
-        .currency-name { font-size: 0.8rem; color: #57606a; }
         
-        .rate-value {
-            font-size: 1.4rem;
-            color: var(--primary-color);
-            font-weight: bold;
+        .avg-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
         }
-
-        .delete-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: none;
-            border: none;
-            color: #cf222e;
-            cursor: pointer;
-            font-size: 1.2rem;
-            opacity: 0; 
-            transition: opacity 0.2s;
+        .avg-controls .control-group { min-width: unset; }
+        .avg-result {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px dashed #d0d7de;
+            border-radius: 6px;
+            background: #eef1f4;
         }
-
-        .rate-card:hover .delete-btn { opacity: 1; }
-
+        .avg-result p { margin: 5px 0; }
+        .avg-rate-display { font-size: 1.5rem; font-weight: bold; color: #2da44e; }
+        
         .loading { text-align: center; color: #57606a; margin-top: 20px; }
         .error { color: #cf222e; text-align: center; margin-top: 20px; }
         
@@ -146,7 +123,9 @@ Help you quickly convert exchange rates between different currencies
             text-align: center;
             font-size: 0.85rem;
             color: #57606a;
-            margin-top: 20px;
+            margin-top: 40px; 
+            padding-top: 10px;
+            border-top: 1px solid #d0d7de;
         }
     </style>
 </head>
@@ -154,7 +133,7 @@ Help you quickly convert exchange rates between different currencies
 
 <div class="container">
     <header>
-        <h1>🌏 全球实时汇率换算</h1>
+        <h1>全球汇率看板 - 实时查询</h1>
         
         <div class="controls">
             <div class="control-group" style="flex: 2;">
@@ -178,23 +157,53 @@ Help you quickly convert exchange rates between different currencies
         <div class="add-currency-section">
             <div class="control-group">
                 <select id="add-currency-select">
-                    <option value="" disabled selected>🔍 搜索并添加货币...</option>
+                    <option value="" disabled selected>🔍 搜索或选择货币添加...</option>
                 </select>
             </div>
-            <button id="reset-date" onclick="addCurrency()" style="background:#2da44e;">添加</button>
+            <button onclick="addCurrency()" style="background:#2da44e;">添加</button>
         </div>
     </header>
 
     <div id="status-msg" class="loading">正在加载数据...</div>
     <div id="rates-container" class="rates-grid"></div>
-    
-    <div class="info-bar">
-        数据来源: Frankfurter API (ECB Data).<br>
-        <small>*注: 汇率仅供参考。</small>
+
+    <div class="average-calculator">
+        <h2>📊 周期平均汇率计算</h2>
+        <div class="avg-controls">
+            <div class="control-group">
+                <label for="avg-base-currency">基准货币 (1 单位)</label>
+                <select id="avg-base-currency">
+                    </select>
+            </div>
+            <div class="control-group">
+                <label for="avg-target-currency">目标货币</label>
+                <select id="avg-target-currency">
+                    </select>
+            </div>
+            <div class="control-group">
+                <label for="avg-start-date">开始日期</label>
+                <input type="date" id="avg-start-date">
+            </div>
+            <div class="control-group">
+                <label for="avg-end-date">结束日期</label>
+                <input type="date" id="avg-end-date">
+            </div>
+            <button onclick="calculateAverageRate()" style="background-color: #2da44e; align-self: flex-end;">计算平均值</button>
+        </div>
+
+        <div id="avg-result" class="avg-result">
+            <p>选择货币和时间范围后，点击“计算平均值”。</p>
+        </div>
     </div>
+
+    <div id="info-bar" class="info-bar">
+        </div>
 </div>
 
 <script>
+    const API_SOURCE = 'Frankfurter API (ECB Data)'; 
+    const API_URL = 'https://api.frankfurter.app';
+
     const currencyMap = {
         "CNY": "人民币", "USD": "美元", "EUR": "欧元", "GBP": "英镑", 
         "JPY": "日元", "KRW": "韩元", "SGD": "新加坡元", "HKD": "港币",
@@ -208,8 +217,6 @@ Help you quickly convert exchange rates between different currencies
     let displayCurrencies = ["USD", "EUR", "GBP", "SGD", "JPY", "KRW", "HKD"];
     let baseCurrency = "CNY";
     let allCurrencies = {}; 
-    
-    // 新增：全局变量存储当前的汇率数据，方便只改金额时不重新请求API
     let currentRatesData = null; 
 
     window.onload = async () => {
@@ -217,11 +224,28 @@ Help you quickly convert exchange rates between different currencies
         await fetchCurrencies();
         renderSelects();
         updateRates();
+        updateInfoBar();
     };
+
+    // --- 数据透明化功能 ---
+    function updateInfoBar() {
+        const now = new Date();
+        const formattedTime = now.toLocaleString('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        });
+
+        document.getElementById('info-bar').innerHTML = `
+            数据来源: **${API_SOURCE}**。<br>
+            更新时间: **${formattedTime} (本地时间)**。<br>
+            <small>*注意: 此为国际市场参考价，请以国家外汇管理局当日公布的中间价为准。</small>
+        `;
+    }
 
     async function fetchCurrencies() {
         try {
-            const response = await fetch('https://api.frankfurter.app/currencies');
+            const response = await fetch(`${API_URL}/currencies`);
             const data = await response.json();
             allCurrencies = data;
             for(let code in data) {
@@ -236,8 +260,13 @@ Help you quickly convert exchange rates between different currencies
         const baseSelect = document.getElementById('base-currency');
         const addSelect = document.getElementById('add-currency-select');
         
+        const avgBaseSelect = document.getElementById('avg-base-currency');
+        const avgTargetSelect = document.getElementById('avg-target-currency');
+
         baseSelect.innerHTML = '';
         addSelect.innerHTML = '<option value="" disabled selected>🔍 搜索或选择货币添加...</option>';
+        avgBaseSelect.innerHTML = '';
+        avgTargetSelect.innerHTML = '';
 
         const sortedCodes = Object.keys(allCurrencies).sort();
 
@@ -245,16 +274,23 @@ Help you quickly convert exchange rates between different currencies
             const name = currencyMap[code] || allCurrencies[code];
             const optionText = `${code} - ${name}`;
             
-            const baseOpt = document.createElement('option');
-            baseOpt.value = code;
-            baseOpt.text = optionText;
+            // 实时面板选项
+            const baseOpt = new Option(optionText, code);
             if(code === baseCurrency) baseOpt.selected = true;
             baseSelect.appendChild(baseOpt);
 
-            const addOpt = document.createElement('option');
-            addOpt.value = code;
-            addOpt.text = optionText;
+            const addOpt = new Option(optionText, code);
             addSelect.appendChild(addOpt);
+            
+            // 平均汇率计算选项
+            const avgBaseOpt = new Option(optionText, code);
+            const avgTargetOpt = new Option(optionText, code);
+            
+            if(code === baseCurrency) avgBaseOpt.selected = true;
+            if(code === "USD") avgTargetOpt.selected = true;
+            
+            avgBaseSelect.appendChild(avgBaseOpt);
+            avgTargetSelect.appendChild(avgTargetOpt);
         });
     }
 
@@ -263,40 +299,33 @@ Help you quickly convert exchange rates between different currencies
         const base = document.getElementById('base-currency').value;
         const msgDiv = document.getElementById('status-msg');
         
-        // 获取当前输入的金额
-        const amount = document.getElementById('base-amount').value;
-
         msgDiv.style.display = 'block';
         msgDiv.innerText = `正在获取 ${dateInput} 汇率...`;
         
-        let apiUrl = `https://api.frankfurter.app/${dateInput}?from=${base}`;
+        let apiUrl = `${API_URL}/${dateInput}?from=${base}`;
         
         try {
             const response = await fetch(apiUrl);
             if (!response.ok) throw new Error("API Error");
             const data = await response.json();
 
-            // 新增：将抓取到的汇率数据存入全局变量
             currentRatesData = data.rates;
-
             msgDiv.style.display = 'none';
-            // 调用渲染函数（现在渲染函数会读取全局数据和金额输入框）
             renderGrid();
+            updateInfoBar();
         } catch (error) {
             msgDiv.innerText = "获取数据失败，请检查网络或日期。";
             msgDiv.className = "error";
-            currentRatesData = null; // 出错清空数据
+            currentRatesData = null; 
         }
     }
 
-    // 修改：renderGrid 不再接收参数，而是读取全局变量 currentRatesData
     function renderGrid() {
         const container = document.getElementById('rates-container');
         container.innerHTML = '';
 
         if (!currentRatesData) return;
 
-        // 新增：获取用户输入的金额，如果为空则默认为1
         let amount = parseFloat(document.getElementById('base-amount').value);
         if (isNaN(amount) || amount < 0) amount = 1;
 
@@ -306,13 +335,11 @@ Help you quickly convert exchange rates between different currencies
             let rate = currentRatesData[code];
             if (!rate) return;
 
-            // 新增：计算 汇率 * 数量
             let totalValue = rate * amount;
             
-            // 新增：美化数字格式 (例如: 1,234.56)
             let formattedValue = totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+                minimumFractionDigits: 4, 
+                maximumFractionDigits: 4
             });
 
             const card = document.createElement('div');
@@ -327,6 +354,66 @@ Help you quickly convert exchange rates between different currencies
             `;
             container.appendChild(card);
         });
+    }
+
+    // 格式化日期：Date对象 -> YYYY-MM-DD 字符串
+    function formatDate(date) {
+        const d = new Date(date);
+        let month = '' + (d.getMonth() + 1);
+        let day = '' + d.getDate();
+        const year = d.getFullYear();
+
+        if (month.length < 2) month = '0' + month;
+        if (day.length < 2) day = '0' + day;
+
+        return [year, month, day].join('-');
+    }
+
+    // 核心计算函数 (已移除 setPeriodDates 函数的依赖)
+    async function calculateAverageRate() {
+        const base = document.getElementById('avg-base-currency').value;
+        const target = document.getElementById('avg-target-currency').value;
+        const start = document.getElementById('avg-start-date').value;
+        const end = document.getElementById('avg-end-date').value;
+        const resultDiv = document.getElementById('avg-result');
+
+        if (!start || !end || base === target) {
+            resultDiv.innerHTML = '<p class="error">请选择有效的开始/结束日期和不同的基准/目标货币。</p>';
+            return;
+        }
+
+        resultDiv.innerHTML = '<p class="loading">正在获取历史数据并计算，请稍候...</p>';
+        
+        // Frankfurter API支持范围查询: /YYYY-MM-DD..YYYY-MM-DD?from=...&to=...
+        const apiUrl = `${API_URL}/${start}..${end}?from=${base}&to=${target}`;
+
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error("API Error or Invalid Date Range");
+            const data = await response.json();
+
+            if (!data.rates || Object.keys(data.rates).length === 0) {
+                 resultDiv.innerHTML = `<p class="error">在 ${start} 至 ${end} 期间未找到 ${base}/${target} 汇率数据。</p>`;
+                 return;
+            }
+
+            // rates 结构是 { "YYYY-MM-DD": { "TARGET": RATE } }
+            const ratesArray = Object.values(data.rates).map(r => r[target]);
+            const totalRates = ratesArray.length;
+            const sumOfRates = ratesArray.reduce((sum, rate) => sum + rate, 0);
+            
+            const averageRate = sumOfRates / totalRates;
+            const dateRange = formatDate(start) === formatDate(end) ? formatDate(start) : `${formatDate(start)} 至 ${formatDate(end)}`;
+
+            resultDiv.innerHTML = `
+                <p>周期：${dateRange} (共 ${totalRates} 个数据点)</p>
+                <p>1 ${base} 对 ${target} 的**平均汇率**为：</p>
+                <p class="avg-rate-display">${averageRate.toFixed(6)}</p>
+            `;
+        } catch (error) {
+            console.error("平均汇率计算失败:", error);
+            resultDiv.innerHTML = `<p class="error">计算失败。请确认日期范围和货币代码是否正确。错误信息: ${error.message}</p>`;
+        }
     }
 
     function resetDate(shouldUpdate = true) {
@@ -344,8 +431,6 @@ Help you quickly convert exchange rates between different currencies
         const code = select.value;
         if (code && !displayCurrencies.includes(code)) {
             displayCurrencies.push(code);
-            // 这里只需要重新渲染，不需要重新fetch，除非新加的货币不在之前的rates里
-            // 但Frankfurter通常返回所有rates，所以直接渲染即可
             renderGrid(); 
         } else if (displayCurrencies.includes(code)) {
             alert("该货币已在面板中！");
@@ -354,7 +439,7 @@ Help you quickly convert exchange rates between different currencies
 
     function removeCurrency(code) {
         displayCurrencies = displayCurrencies.filter(c => c !== code);
-        renderGrid(); // 修改：删除只需重新渲染
+        renderGrid(); 
     }
 </script>
 
