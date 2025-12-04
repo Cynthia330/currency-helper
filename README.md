@@ -464,7 +464,7 @@
         document.getElementById('info-bar').innerHTML = `
             数据来源: ${API_SOURCE}。<br>
             更新时间: ${formattedTime} (本地时间)。<br>
-            <small>*注意: 此为国际市场参考价，法定会计记账请以国家外汇管理局当日公布的中间价为准。</small>
+            <small>*注意: 此为国际市场参考价，请以国家外汇管理局当日公布的中间价为准。</small>
         `;
     }
 
