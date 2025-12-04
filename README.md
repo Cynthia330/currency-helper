@@ -34,6 +34,12 @@
             margin-bottom: 20px;
         }
 
+/* --- 调整：扩大周期计算面板上方的距离 --- */
+        .average-calculator {
+            margin-top: 40px; 
+        }
+        /* -------------------------------------- */
+        
         h1 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
 
         .average-calculator h2 {
