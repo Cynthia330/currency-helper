@@ -1,9 +1,9 @@
-# 你的汇率换算助手
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球汇率看板 - 财务专用</title>
+    <title>全球汇率看板 - 实时查询</title>
     <style>
         :root {
             --primary-color: #0969da;
@@ -34,19 +34,9 @@
             margin-bottom: 20px;
         }
 
-/* --- 调整：扩大周期计算面板上方的距离 --- */
-        .average-calculator {
-            margin-top: 40px; 
-        }
-        /* -------------------------------------- */
-        
+        .average-calculator { margin-top: 40px; }
         h1 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
-
-        .average-calculator h2 {
-            margin: 0 0 20px 0;
-            font-size: 1.5rem; 
-            text-align: center;
-        }
+        .average-calculator h2 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
 
         .controls {
             display: flex;
@@ -91,17 +81,14 @@
         button:hover:not(:disabled) { opacity: 0.9; }
         button:disabled { background-color: #999; cursor: not-allowed; }
 
-        /* 调整布局适应双重选择 */
         .add-currency-section { 
             margin-top: 15px; 
             display: flex; 
-            flex-wrap: wrap; /* 允许换行，适应小屏幕 */
-            gap: 15px 10px; /* 垂直和水平间距 */
-            align-items: flex-end; /* 底部对齐 */
+            flex-wrap: wrap; 
+            gap: 15px 10px; 
+            align-items: flex-end; 
         }
         .add-currency-section .control-group { flex: 1; min-width: 180px; }
-        /* ----------------------- */
-
 
         .rates-grid {
             display: grid;
@@ -118,25 +105,23 @@
             justify-content: space-between;
             align-items: center;
             position: relative;
-            transition: transform 0.2s;
         }
         
         .currency-info { display: flex; flex-direction: column; }
         .currency-code { font-weight: bold; font-size: 1.2rem; }
         .currency-name { font-size: 0.8rem; color: #57606a; }
-        
-        .rate-value {
-            font-size: 1.4rem;
-            color: var(--primary-color);
-            font-weight: bold;
+        .rate-value { font-size: 1.4rem; color: var(--primary-color); font-weight: bold; }
+
+        .delete-btn {
+            background: none;
+            color: #cf222e;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 5px;
+            height: auto;
         }
 
-        .avg-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .avg-controls .control-group { min-width: unset; }
         .avg-result {
             margin-top: 15px;
             padding: 15px;
@@ -144,25 +129,14 @@
             border-radius: 6px;
             background: #eef1f4;
         }
-        .avg-result p { margin: 5px 0; }
         .avg-rate-display { font-size: 1.5rem; font-weight: bold; color: #2da44e; }
         
         .loading { text-align: center; color: #57606a; margin-top: 20px; }
-        .error { color: #cf222e; text-align: center; margin-top: 20px; }
-        
-        .info-bar {
-            text-align: center;
-            font-size: 0.85rem;
-            color: #57606a;
-            margin-top: 40px; 
-            padding-top: 10px;
-            border-top: 1px solid #d0d7de;
-        }
+        .error { color: #cf222e; text-align: center; margin-top: 20px; font-weight: bold; }
+        .info-bar { text-align: center; font-size: 0.85rem; color: #57606a; margin-top: 40px; padding-top: 10px; border-top: 1px solid #d0d7de; }
 
-        /* --- 搜索框样式 (保持不变) --- */
-        .search-container {
-            position: relative;
-        }
+        /* 搜索建议列表样式 */
+        .search-container { position: relative; }
         .results-dropdown {
             position: absolute;
             z-index: 1000; 
@@ -172,506 +146,210 @@
             max-height: 200px;
             overflow-y: auto;
             width: 100%;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             top: 100%;
             display: none;
             list-style: none;
             padding: 0;
-            margin: 0;
-            margin-top: 5px; 
+            margin: 5px 0 0 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .result-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .result-item:hover {
-            background-color: var(--bg-color);
-        }
-        .result-item.selected {
-            background-color: #e0f2ff;
-        }
-        .result-name { font-size: 0.9rem; color: #57606a; }
-        /* ---------------------- */
+        .result-item { padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; }
+        .result-item:hover, .result-item.selected { background-color: #e0f2ff; }
     </style>
 </head>
 <body onclick="hideDropdown(event)">
 
 <div class="container">
     <header>
-        <h1>全球汇率看板 - 实时查询</h1>
+        <h1>全球汇率看板 - 财务工具</h1>
         
         <div class="controls">
             <div class="control-group" style="flex: 2;">
                 <label for="base-currency">持有金额 & 基准货币</label>
                 <div class="currency-input-group">
                     <input type="number" id="base-amount" value="1" min="0" step="any" oninput="renderGrid()">
-                    
                     <select id="base-currency" onchange="updateRates()" style="flex:1;">
-                        </select>
+                        <option value="CNY">CNY - 人民币 (中国)</option>
+                    </select>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="date-picker">汇率日期</label>
-                <input type="date" id="date-picker" onchange="updateRates()">
+                <label>数据状态</label>
+                <button id="refresh-btn" onclick="updateRates()">刷新数据</button>
             </div>
-
-            <button id="reset-date" onclick="resetDate()">恢复今日</button>
         </div>
 
         <div class="add-currency-section">
             <div class="control-group search-container">
-                <label for="add-currency-search">快速搜索 (代码/名称/国家)</label>
-                <input 
-                    type="text" 
-                    id="add-currency-search" 
-                    placeholder="🔍 搜索：代码/名称/国家" 
-                    oninput="filterCurrencies()" 
-                    onkeydown="handleKeydown(event)"
-                    autocomplete="off"
-                >
+                <label for="add-currency-search">搜索添加货币</label>
+                <input type="text" id="add-currency-search" placeholder="🔍 代码/名称" oninput="filterCurrencies()" onkeydown="handleKeydown(event)" autocomplete="off">
                 <ul id="currency-results-dropdown" class="results-dropdown"></ul>
             </div>
-
-            <div class="control-group">
-                <label for="add-currency-select">或 从列表中选择</label>
-                <select id="add-currency-select" onchange="handleSelectChange()">
-                    <option value="" disabled selected>选择货币添加...</option>
-                </select>
-            </div>
-            
             <button id="add-currency-button" onclick="addCurrency()" style="background:#2da44e;" disabled>添加</button>
         </div>
-        </header>
+    </header>
 
-    <div id="status-msg" class="loading">正在加载数据...</div>
+    <div id="status-msg" class="loading">正在加载汇率...</div>
     <div id="rates-container" class="rates-grid"></div>
 
     <div class="average-calculator">
-        <h2>周期平均汇率计算</h2>
-        <div class="avg-controls">
-            <div class="control-group">
-                <label for="avg-base-currency">基准货币 (1 单位)</label>
-                <select id="avg-base-currency">
-                    </select>
-            </div>
-            <div class="control-group">
-                <label for="avg-target-currency">目标货币</label>
-                <select id="avg-target-currency">
-                    </select>
-            </div>
-            <div class="control-group">
-                <label for="avg-start-date">开始日期</label>
-                <input type="date" id="avg-start-date">
-            </div>
-            <div class="control-group">
-                <label for="avg-end-date">结束日期</label>
-                <input type="date" id="avg-end-date">
-            </div>
-            <button onclick="calculateAverageRate()" style="background-color: #2da44e; align-self: flex-end;">计算平均值</button>
-        </div>
-
+        <h2>周期计算 (提示)</h2>
         <div id="avg-result" class="avg-result">
-            <p>选择货币和时间范围后，点击“计算平均值”。</p>
+            <p>由于 API 更换，周期平均汇率计算功能需接入历史数据接口。当前面板优先保证实时汇率的稳定性。</p>
         </div>
     </div>
 
-    <div id="info-bar" class="info-bar">
-        </div>
+    <div id="info-bar" class="info-bar"></div>
 </div>
 
 <script>
-    const API_SOURCE = 'Frankfurter API (ECB Data)'; 
-    const API_URL = 'https://api.frankfurter.app';
+    // 使用 ExchangeRate-API (er-api)
+    const API_URL = 'https://open.er-api.com/v6/latest';
+    const API_SOURCE = 'ExchangeRate-API (Real-time)';
 
     const currencyMap = {
-        "CNY": "人民币 (中国)", 
-        "USD": "美元 (美国)", 
-        "EUR": "欧元 (欧元区/欧盟)", 
-        "GBP": "英镑 (英国)", 
-        "JPY": "日元 (日本)", 
-        "KRW": "韩元 (韩国)", 
-        "SGD": "新加坡元 (新加坡)", 
-        "HKD": "港币 (香港)",
-        "AUD": "澳元 (澳大利亚)", 
-        "CAD": "加元 (加拿大)", 
-        "CHF": "瑞士法郎 (瑞士)", 
-        "NZD": "新西兰元 (新西兰)",
-        "THB": "泰铢 (泰国)", 
-        "MYR": "马来西亚林吉特 (马来西亚)", 
-        "RUB": "俄罗斯卢布 (俄罗斯)",
-        "INR": "印度卢比 (印度)", 
-        "BRL": "巴西雷亚尔 (巴西)", 
-        "ZAR": "南非兰特 (南非)",
-        "TWD": "新台币 (台湾)", 
-        "VND": "越南盾 (越南)", 
-        "PHP": "菲律宾比索 (菲律宾)",
-        "IDR": "印尼盾 (印度尼西亚)", 
-        "TRY": "土耳其里拉 (土耳其)", 
-        "MXN": "墨西哥比索 (墨西哥)"
+        "CNY": "人民币 (中国)", "USD": "美元 (美国)", "EUR": "欧元", "GBP": "英镑",
+        "JPY": "日元", "KRW": "韩元", "SGD": "新加坡元", "HKD": "港币",
+        "AUD": "澳元", "CAD": "加元", "CHF": "瑞士法郎", "THB": "泰铢",
+        "MYR": "林吉特", "RUB": "卢布", "INR": "卢比", "TWD": "新台币"
     };
 
-    let displayCurrencies = ["USD", "EUR", "GBP", "SGD", "JPY", "KRW", "HKD"];
-    let baseCurrency = "CNY";
-    let allCurrencies = {}; 
-    let currentRatesData = null; 
-    let selectedCurrencyCode = null; 
+    let displayCurrencies = ["USD", "EUR", "GBP", "SGD", "JPY", "HKD"];
+    let currentRatesData = null;
+    let allCurrenciesList = [];
+    let selectedCurrencyCode = null;
 
     window.onload = async () => {
-        resetDate(false);
-        await fetchCurrencies();
+        // 1. 先初始化基础列表，确保 base-currency 有值
         renderSelects();
-        updateRates();
-        updateInfoBar();
+        // 2. 获取最新汇率
+        await updateRates();
     };
 
-    // --- 状态清除函数 (防止搜索框和下拉栏冲突) ---
-    function clearSelectionState() {
-        document.getElementById('add-currency-search').value = '';
-        document.getElementById('add-currency-select').value = '';
-        document.getElementById('currency-results-dropdown').style.display = 'none';
-        document.getElementById('add-currency-button').disabled = true;
-        selectedCurrencyCode = null;
-    }
-
-    // --- 下拉栏选择事件处理函数 ---
-    function handleSelectChange() {
-        const select = document.getElementById('add-currency-select');
-        const code = select.value;
-        
-        if (code) {
-            selectedCurrencyCode = code;
-            document.getElementById('add-currency-search').value = ''; // 清除搜索框
-            document.getElementById('currency-results-dropdown').style.display = 'none';
-            document.getElementById('add-currency-button').disabled = false;
-        } else {
-            document.getElementById('add-currency-button').disabled = true;
-            selectedCurrencyCode = null;
-        }
-    }
-
-    // --- 搜索输入事件处理函数 ---
-    function filterCurrencies() {
-        const input = document.getElementById('add-currency-search');
-        const dropdown = document.getElementById('currency-results-dropdown');
-        const button = document.getElementById('add-currency-button');
-        const select = document.getElementById('add-currency-select');
-        
-        const filter = input.value.toUpperCase();
-        
-        dropdown.innerHTML = '';
-        selectedCurrencyCode = null; // 清除当前选择状态
-        button.disabled = true;
-        select.value = ''; // 清除下拉栏选择状态
-
-        if (filter.length < 1) {
-            dropdown.style.display = 'none';
-            return;
-        }
-
-        const filteredCodes = Object.keys(allCurrencies).filter(code => {
-            const name = currencyMap[code] || allCurrencies[code];
-            return code.includes(filter) || name.toUpperCase().includes(filter);
-        }).sort();
-
-        if (filteredCodes.length === 0) {
-            dropdown.style.display = 'none';
-            return;
-        }
-        
-        filteredCodes.slice(0, 10).forEach(code => { 
-            const name = currencyMap[code] || allCurrencies[code];
-            const item = document.createElement('li');
-            item.className = 'result-item';
-            item.setAttribute('data-code', code);
-            item.innerHTML = `
-                <span class="result-code">${code}</span>
-                <span class="result-name">${name}</span>
-            `;
-            item.onclick = (e) => selectCurrency(e, code, name);
-            dropdown.appendChild(item);
-        });
-
-        dropdown.style.display = 'block';
-    }
-
-    function selectCurrency(e, code, name) {
-        e.stopPropagation(); 
-        document.getElementById('add-currency-search').value = `${code} - ${name}`;
-        selectedCurrencyCode = code;
-        document.getElementById('add-currency-button').disabled = false;
-        document.getElementById('currency-results-dropdown').style.display = 'none';
-        document.getElementById('add-currency-select').value = ''; // 清除下拉栏
-        
-        document.getElementById('add-currency-search').focus(); 
-    }
-    
-    function handleKeydown(event) {
-        const dropdown = document.getElementById('currency-results-dropdown');
-        const items = dropdown.querySelectorAll('.result-item');
-        if (items.length === 0) return;
-
-        let currentIndex = -1;
-        items.forEach((item, index) => {
-            if (item.classList.contains('selected')) {
-                currentIndex = index;
-            }
-        });
-
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            let nextIndex = (currentIndex + 1) % items.length;
-            
-            items.forEach(item => item.classList.remove('selected'));
-            items[nextIndex].classList.add('selected');
-            items[nextIndex].scrollIntoView({ block: 'nearest' });
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            let prevIndex = (currentIndex - 1 + items.length) % items.length;
-            
-            items.forEach(item => item.classList.remove('selected'));
-            items[prevIndex].classList.add('selected');
-            items[prevIndex].scrollIntoView({ block: 'nearest' });
-        } else if (event.key === 'Enter') {
-            event.preventDefault();
-            const indexToSelect = currentIndex !== -1 ? currentIndex : 0;
-            if (items.length > 0) {
-                const code = items[indexToSelect].getAttribute('data-code');
-                const name = items[indexToSelect].querySelector('.result-name').textContent;
-                selectCurrency(event, code, name);
-                addCurrency(); 
-            }
-        }
-    }
-
-    function hideDropdown(event) {
-        const searchInput = document.getElementById('add-currency-search');
-        const dropdown = document.getElementById('currency-results-dropdown');
-        if (event.target !== searchInput && !dropdown.contains(event.target)) {
-            dropdown.style.display = 'none';
-        }
-    }
-    
-    // -----------------------------------------------------
-
-
-    function updateInfoBar() {
-        const now = new Date();
-        const formattedTime = now.toLocaleString('zh-CN', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', second: '2-digit',
-            hour12: false
-        });
-
-        document.getElementById('info-bar').innerHTML = `
-            数据来源: ${API_SOURCE}。<br>
-            更新时间: ${formattedTime} (本地时间)。<br>
-            <small>*注意: 此为国际市场参考价，请以国家外汇管理局当日公布的中间价为准。</small>
-        `;
-    }
-
-    async function fetchCurrencies() {
-        try {
-            const response = await fetch(`${API_URL}/currencies`);
-            const data = await response.json();
-            allCurrencies = data;
-            for(let code in data) {
-                if(!currencyMap[code]) currencyMap[code] = data[code];
-            }
-        } catch (error) {
-            console.error("无法加载货币列表", error);
-        }
-    }
-
-    function renderSelects() {
-        // 更新所有下拉菜单
-        const baseSelect = document.getElementById('base-currency');
-        const addSelect = document.getElementById('add-currency-select'); // 重新获取
-        const avgBaseSelect = document.getElementById('avg-base-currency');
-        const avgTargetSelect = document.getElementById('avg-target-currency');
-
-        baseSelect.innerHTML = '';
-        addSelect.innerHTML = '<option value="" disabled selected>选择货币添加...</option>'; // 恢复默认选项
-        avgBaseSelect.innerHTML = '';
-        avgTargetSelect.innerHTML = '';
-
-        const sortedCodes = Object.keys(allCurrencies).sort();
-
-        sortedCodes.forEach(code => {
-            const name = currencyMap[code] || allCurrencies[code]; 
-            const optionText = `${code} - ${name}`;
-            
-            // 实时面板选项
-            const baseOpt = new Option(optionText, code);
-            if(code === baseCurrency) baseOpt.selected = true;
-            baseSelect.appendChild(baseOpt);
-            
-            // 添加货币下拉列表选项 (新恢复)
-            const addOpt = new Option(optionText, code);
-            addSelect.appendChild(addOpt);
-            
-            // 平均汇率计算选项
-            const avgBaseOpt = new Option(optionText, code);
-            const avgTargetOpt = new Option(optionText, code);
-            
-            if(code === baseCurrency) avgBaseOpt.selected = true;
-            if(code === "USD") avgTargetOpt.selected = true;
-            
-            avgBaseSelect.appendChild(avgBaseOpt);
-            avgTargetSelect.appendChild(avgTargetOpt);
-        });
-    }
-
     async function updateRates() {
-        const dateInput = document.getElementById('date-picker').value;
-        const base = document.getElementById('base-currency').value;
+        const base = document.getElementById('base-currency').value || "CNY";
         const msgDiv = document.getElementById('status-msg');
         
         msgDiv.style.display = 'block';
-        msgDiv.innerText = `正在获取 ${dateInput} 汇率...`;
-        
-        let apiUrl = `${API_URL}/${dateInput}?from=${base}`;
-        
+        msgDiv.className = 'loading';
+        msgDiv.innerText = `正在从 ${API_SOURCE} 获取最新数据...`;
+
         try {
-            const response = await fetch(apiUrl);
-            if (!response.ok) throw new Error("API Error");
+            const response = await fetch(`${API_URL}/${base}`);
             const data = await response.json();
 
-            currentRatesData = data.rates;
-            msgDiv.style.display = 'none';
-            renderGrid();
-            updateInfoBar();
+            if (data.result === "success") {
+                currentRatesData = data.rates;
+                allCurrenciesList = Object.keys(data.rates);
+                
+                // 更新页面
+                msgDiv.style.display = 'none';
+                renderGrid();
+                updateInfoBar(data.time_last_update_utc);
+            } else {
+                throw new Error("API返回错误");
+            }
         } catch (error) {
-            msgDiv.innerText = "获取数据失败，请检查网络或日期。";
+            console.error(error);
+            msgDiv.innerText = "获取失败：请检查网络或 CORS 代理设置。";
             msgDiv.className = "error";
-            currentRatesData = null; 
         }
     }
 
     function renderGrid() {
         const container = document.getElementById('rates-container');
         container.innerHTML = '';
-
         if (!currentRatesData) return;
 
-        let amount = parseFloat(document.getElementById('base-amount').value);
-        if (isNaN(amount) || amount < 0) amount = 1;
+        let amount = parseFloat(document.getElementById('base-amount').value) || 1;
+        const base = document.getElementById('base-currency').value;
 
         displayCurrencies.forEach(code => {
-            if (code === document.getElementById('base-currency').value) return;
-
+            if (code === base) return;
             let rate = currentRatesData[code];
             if (!rate) return;
-
-            let totalValue = rate * amount;
-            
-            let formattedValue = totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 4, 
-                maximumFractionDigits: 4
-            });
 
             const card = document.createElement('div');
             card.className = 'rate-card';
             card.innerHTML = `
                 <div class="currency-info">
                     <span class="currency-code">${code}</span>
-                    <span class="currency-name">${currencyMap[code] || code}</span>
+                    <span class="currency-name">${currencyMap[code] || '外币'}</span>
                 </div>
-                <div class="rate-value">${formattedValue}</div>
-                <button class="delete-btn" onclick="removeCurrency('${code}')" title="移除">×</button>
+                <div class="rate-value">${(rate * amount).toLocaleString(undefined, {minimumFractionDigits: 4})}</div>
+                <button class="delete-btn" onclick="removeCurrency('${code}')">×</button>
             `;
             container.appendChild(card);
         });
     }
 
-    function formatDate(date) {
-        const d = new Date(date);
-        let month = '' + (d.getMonth() + 1);
-        let day = '' + d.getDate();
-        const year = d.getFullYear();
-
-        if (month.length < 2) month = '0' + month;
-        if (day.length < 2) day = '0' + day;
-
-        return [year, month, day].join('-');
-    }
-
-    async function calculateAverageRate() {
-        const base = document.getElementById('avg-base-currency').value;
-        const target = document.getElementById('avg-target-currency').value;
-        const start = document.getElementById('avg-start-date').value;
-        const end = document.getElementById('avg-end-date').value;
-        const resultDiv = document.getElementById('avg-result');
-
-        if (!start || !end || base === target) {
-            resultDiv.innerHTML = '<p class="error">请选择有效的开始/结束日期和不同的基准/目标货币。</p>';
-            return;
-        }
-
-        resultDiv.innerHTML = '<p class="loading">正在获取历史数据并计算，请稍候...</p>';
+    function filterCurrencies() {
+        const input = document.getElementById('add-currency-search');
+        const dropdown = document.getElementById('currency-results-dropdown');
+        const val = input.value.toUpperCase();
         
-        const apiUrl = `${API_URL}/${start}..${end}?from=${base}&to=${target}`;
+        dropdown.innerHTML = '';
+        if (!val) { dropdown.style.display = 'none'; return; }
 
-        try {
-            const response = await fetch(apiUrl);
-            if (!response.ok) throw new Error("API Error or Invalid Date Range");
-            const data = await response.json();
+        const filtered = allCurrenciesList.filter(code => 
+            code.includes(val) || (currencyMap[code] && currencyMap[code].includes(val))
+        ).slice(0, 8);
 
-            if (!data.rates || Object.keys(data.rates).length === 0) {
-                 resultDiv.innerHTML = `<p class="error">在 ${start} 至 ${end} 期间未找到 ${base}/${target} 汇率数据。</p>`;
-                 return;
-            }
-
-            const ratesArray = Object.values(data.rates).map(r => r[target]);
-            const totalRates = ratesArray.length;
-            const sumOfRates = ratesArray.reduce((sum, rate) => sum + rate, 0);
-            
-            const averageRate = sumOfRates / totalRates;
-            const dateRange = formatDate(start) === formatDate(end) ? formatDate(start) : `${formatDate(start)} 至 ${formatDate(end)}`;
-
-            resultDiv.innerHTML = `
-                <p>周期：${dateRange} (共 ${totalRates} 个数据点)</p>
-                <p>1 ${base} 对 ${target} 的**平均汇率**为：</p>
-                <p class="avg-rate-display">${averageRate.toFixed(6)}</p>
-            `;
-        } catch (error) {
-            console.error("平均汇率计算失败:", error);
-            resultDiv.innerHTML = `<p class="error">计算失败。请确认日期范围和货币代码是否正确。错误信息: ${error.message}</p>`;
-        }
+        filtered.forEach(code => {
+            const li = document.createElement('li');
+            li.className = 'result-item';
+            li.innerHTML = `<span>${code}</span><span style="color:#888">${currencyMap[code] || ''}</span>`;
+            li.onclick = () => {
+                selectedCurrencyCode = code;
+                input.value = code;
+                dropdown.style.display = 'none';
+                document.getElementById('add-currency-button').disabled = false;
+            };
+            dropdown.appendChild(li);
+        });
+        dropdown.style.display = filtered.length ? 'block' : 'none';
     }
 
-    // 修改：清除所有选择状态
     function addCurrency() {
-        const code = selectedCurrencyCode;
-        if (code && !displayCurrencies.includes(code)) {
-            displayCurrencies.push(code);
+        if (selectedCurrencyCode && !displayCurrencies.includes(selectedCurrencyCode)) {
+            displayCurrencies.push(selectedCurrencyCode);
             renderGrid();
-            clearSelectionState(); // 清除状态
-        } else if (displayCurrencies.includes(code)) {
-            alert("该货币已在面板中！");
-            clearSelectionState(); // 即使失败也要清除状态
+            document.getElementById('add-currency-search').value = '';
+            document.getElementById('add-currency-button').disabled = true;
         }
     }
 
     function removeCurrency(code) {
         displayCurrencies = displayCurrencies.filter(c => c !== code);
-        renderGrid(); 
+        renderGrid();
     }
-    
-    function resetDate(shouldUpdate = true) {
-        const today = new Date();
-        const offset = 8; 
-        const localDate = new Date(today.getTime() + offset * 3600 * 1000);
-        const dateString = localDate.toISOString().split('T')[0];
-        
-        document.getElementById('date-picker').value = dateString;
-        if(shouldUpdate) updateRates();
+
+    function hideDropdown(e) {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById('currency-results-dropdown').style.display = 'none';
+        }
+    }
+
+    function renderSelects() {
+        const baseSelect = document.getElementById('base-currency');
+        // 预设常用基准货币
+        const defaults = ["CNY", "USD", "EUR", "HKD", "GBP"];
+        baseSelect.innerHTML = defaults.map(code => 
+            `<option value="${code}">${code} - ${currencyMap[code] || ''}</option>`
+        ).join('');
+    }
+
+    function updateInfoBar(utcTime) {
+        document.getElementById('info-bar').innerHTML = `
+            数据来源: ${API_SOURCE} | 更新依据: ${utcTime || '刚刚'}<br>
+            <small>* 此汇率仅供参考，财务结算请以银行实盘或 SAFE 中间价为准。</small>
+        `;
+    }
+
+    function handleKeydown(e) {
+        if (e.key === 'Enter') addCurrency();
     }
 </script>
-
 </body>
 </html>
